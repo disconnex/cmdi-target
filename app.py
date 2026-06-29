@@ -27,7 +27,16 @@ def openapi():
                     }],
                     "responses": {"200": {"description": "ping output"}},
                 }
-            }
+            },
+            "/echo": {
+                "get": {
+                    "parameters": [{
+                        "name": "msg", "in": "query", "required": True,
+                        "schema": {"type": "string", "example": "hello"},
+                    }],
+                    "responses": {"200": {"description": "echoed html"}},
+                }
+            },
         },
     })
 
@@ -40,6 +49,15 @@ def ping():
         f"ping -c 1 {host}", shell=True, capture_output=True, text=True, timeout=15
     )
     return (out.stdout or "") + (out.stderr or ""), 200, {"Content-Type": "text/plain"}
+
+
+@app.get("/echo")
+def echo():
+    # VULNERABLE BY DESIGN: reflects `msg` into HTML unescaped — a textbook
+    # server-side reflected XSS (CWE-79) that nuclei's DAST xss templates
+    # confirm (no headless browser needed, unlike DOM XSS).
+    msg = request.args.get("msg", "hi")
+    return f"<html><body><div>{msg}</div></body></html>", 200, {"Content-Type": "text/html"}
 
 
 @app.get("/")
